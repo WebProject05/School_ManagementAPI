@@ -1,70 +1,46 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type user struct {
 	Name string `json:"name"`
-	Age string `json:"age"`
+	Age  string `json:"age"`
 	City string `json:"city"`
 }
 
-func main() {
-	port := ":3000"
+func rootHandlers(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Write([]byte("Hello from the server!"))
+}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Write([]byte("Hello from the server!"))
-	})
-
-	http.HandleFunc("/teachers", func(w http.ResponseWriter, r *http.Request) {
+func teachersHandler(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
+			fmt.Println(r.URL.Path)
+			path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+			userID := strings.TrimSuffix(path, "/")
+
+			fmt.Println("User ID:", userID)
+
+
+			fmt.Println("Query Params:", r.URL.Query())
+			queryParam := r.URL.Query()
+			name := queryParam.Get("name")
+			age := queryParam.Get("age")
+			fmt.Println("Name from the query:", name)
+			fmt.Println("Age from the Query:", age)
 			w.Write([]byte("Read (GET) teachers"))
 			return
 
 		case http.MethodPost:
-			// Parsing the form data from the user
-			err := r.ParseForm()
-			if err != nil {
-				http.Error(w, "Error Parsing the form", http.StatusBadRequest)
-				log.Fatalln("Error parsing the input data:", err)
-				return
-			}
-
-			// Preparing the response data
-			response := make(map[string]interface{})
-			for key, value := range r.Form {
-				response[key] = value[0]
-			}
-
-			// RAW data parsing with json
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				return
-			}
-			defer r.Body.Close()
-			fmt.Println("Raw Date:",string(body))
-
-
-			// UnMarshling the raw body
-			var userInstance user
-			err = json.Unmarshal(body, &userInstance)
-			if err != nil {
-				return
-			}
-
-			fmt.Println("UnMarshaled JSON:",userInstance)
-
-			fmt.Println("Form data:", r.Form)
 			w.Write([]byte("Create (POST) teacher"))
 			return
 
@@ -84,15 +60,77 @@ func main() {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		}
 		w.Write([]byte("Hello from the teachers route!"))
-	})
+	}
 
-	http.HandleFunc("/students", func(w http.ResponseWriter, r *http.Request) {
+
+func studentsHandler(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Write([]byte("Read (GET) students"))
+			return
+
+		case http.MethodPost:
+			w.Write([]byte("Create (POST) students"))
+			return
+
+		case http.MethodPut:
+			w.Write([]byte("Update (PUT) students"))
+			return
+
+		case http.MethodPatch:
+			w.Write([]byte("Partial Update (PATCH) students"))
+			return
+
+		case http.MethodDelete:
+			w.Write([]byte("Delete (DELETE) students"))
+			return
+
+		default:
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
 		w.Write([]byte("Hello from the students route!"))
-	})
+	}
 
-	http.HandleFunc("/execs", func(w http.ResponseWriter, r *http.Request) {
+
+
+func excesHandler(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Write([]byte("Read (GET) exces"))
+			return
+
+		case http.MethodPost:
+			w.Write([]byte("Create (POST) exces"))
+			return
+
+		case http.MethodPut:
+			w.Write([]byte("Update (PUT) exces"))
+			return
+
+		case http.MethodPatch:
+			w.Write([]byte("Partial Update (PATCH) exces"))
+			return
+
+		case http.MethodDelete:
+			w.Write([]byte("Delete (DELETE) exces"))
+			return
+
+		default:
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
 		w.Write([]byte("Hello from the execs route!"))
-	})
+	}
+
+func main() {
+	port := ":3000"
+
+	http.HandleFunc("/", rootHandlers)
+
+	http.HandleFunc("/teachers/", teachersHandler)
+
+	http.HandleFunc("/students/", studentsHandler)
+
+	http.HandleFunc("/execs/", excesHandler)
 
 	fmt.Println("Server running on the port:", port)
 	err := http.ListenAndServe(port, nil)
