@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"restapi/internal/api/middlewares"
 	"strings"
 )
 
@@ -23,104 +24,100 @@ func rootHandlers(w http.ResponseWriter, r *http.Request) {
 }
 
 func teachersHandler(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			fmt.Println(r.URL.Path)
-			path := strings.TrimPrefix(r.URL.Path, "/teachers/")
-			userID := strings.TrimSuffix(path, "/")
+	switch r.Method {
+	case http.MethodGet:
+		fmt.Println(r.URL.Path)
+		path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+		userID := strings.TrimSuffix(path, "/")
 
-			fmt.Println("User ID:", userID)
+		fmt.Println("User ID:", userID)
 
+		fmt.Println("Query Params:", r.URL.Query())
+		queryParam := r.URL.Query()
+		name := queryParam.Get("name")
+		age := queryParam.Get("age")
+		fmt.Println("Name from the query:", name)
+		fmt.Println("Age from the Query:", age)
+		w.Write([]byte("Read (GET) teachers"))
+		return
 
-			fmt.Println("Query Params:", r.URL.Query())
-			queryParam := r.URL.Query()
-			name := queryParam.Get("name")
-			age := queryParam.Get("age")
-			fmt.Println("Name from the query:", name)
-			fmt.Println("Age from the Query:", age)
-			w.Write([]byte("Read (GET) teachers"))
-			return
+	case http.MethodPost:
+		w.Write([]byte("Create (POST) teacher"))
+		return
 
-		case http.MethodPost:
-			w.Write([]byte("Create (POST) teacher"))
-			return
+	case http.MethodPut:
+		w.Write([]byte("Update (PUT) teacher"))
+		return
 
-		case http.MethodPut:
-			w.Write([]byte("Update (PUT) teacher"))
-			return
+	case http.MethodPatch:
+		w.Write([]byte("Partial Update (PATCH) teacher"))
+		return
 
-		case http.MethodPatch:
-			w.Write([]byte("Partial Update (PATCH) teacher"))
-			return
+	case http.MethodDelete:
+		w.Write([]byte("Delete (DELETE) teacher"))
+		return
 
-		case http.MethodDelete:
-			w.Write([]byte("Delete (DELETE) teacher"))
-			return
-
-		default:
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		}
-		w.Write([]byte("Hello from the teachers route!"))
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
-
+	w.Write([]byte("Hello from the teachers route!"))
+}
 
 func studentsHandler(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			w.Write([]byte("Read (GET) students"))
-			return
+	switch r.Method {
+	case http.MethodGet:
+		w.Write([]byte("Read (GET) students"))
+		return
 
-		case http.MethodPost:
-			w.Write([]byte("Create (POST) students"))
-			return
+	case http.MethodPost:
+		w.Write([]byte("Create (POST) students"))
+		return
 
-		case http.MethodPut:
-			w.Write([]byte("Update (PUT) students"))
-			return
+	case http.MethodPut:
+		w.Write([]byte("Update (PUT) students"))
+		return
 
-		case http.MethodPatch:
-			w.Write([]byte("Partial Update (PATCH) students"))
-			return
+	case http.MethodPatch:
+		w.Write([]byte("Partial Update (PATCH) students"))
+		return
 
-		case http.MethodDelete:
-			w.Write([]byte("Delete (DELETE) students"))
-			return
+	case http.MethodDelete:
+		w.Write([]byte("Delete (DELETE) students"))
+		return
 
-		default:
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		}
-		w.Write([]byte("Hello from the students route!"))
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
-
-
+	w.Write([]byte("Hello from the students route!"))
+}
 
 func excesHandler(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			w.Write([]byte("Read (GET) exces"))
-			return
+	switch r.Method {
+	case http.MethodGet:
+		w.Write([]byte("Read (GET) exces"))
+		return
 
-		case http.MethodPost:
-			w.Write([]byte("Create (POST) exces"))
-			return
+	case http.MethodPost:
+		w.Write([]byte("Create (POST) exces"))
+		return
 
-		case http.MethodPut:
-			w.Write([]byte("Update (PUT) exces"))
-			return
+	case http.MethodPut:
+		w.Write([]byte("Update (PUT) exces"))
+		return
 
-		case http.MethodPatch:
-			w.Write([]byte("Partial Update (PATCH) exces"))
-			return
+	case http.MethodPatch:
+		w.Write([]byte("Partial Update (PATCH) exces"))
+		return
 
-		case http.MethodDelete:
-			w.Write([]byte("Delete (DELETE) exces"))
-			return
+	case http.MethodDelete:
+		w.Write([]byte("Delete (DELETE) exces"))
+		return
 
-		default:
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		}
-		w.Write([]byte("Hello from the execs route!"))
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
+	w.Write([]byte("Hello from the execs route!"))
+}
 
 func main() {
 	port := ":3000"
@@ -145,8 +142,9 @@ func main() {
 
 	// Creating a custom server
 	server := &http.Server{
-		Addr: port,
-		Handler: mux ,
+		Addr:      port,
+		// Handler:   middlewares.SecurityHeaders(mux),
+		Handler:   middlewares.Cors(mux),
 		TLSConfig: tlsConfig,
 	}
 
