@@ -38,7 +38,7 @@ type responseWriter struct {
 	http.ResponseWriter
 	status int
 }
-
+ 
 // WriteHeader intercepts the status code before passing it to the real ResponseWriter
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
