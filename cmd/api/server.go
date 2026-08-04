@@ -143,8 +143,8 @@ func main() {
 	// Creating a custom server
 	server := &http.Server{
 		Addr:      port,
-		// Handler:   middlewares.SecurityHeaders(mux),
-		Handler:   middlewares.Cors(mux),
+		Handler:   middlewares.SecurityHeaders(middlewares.Cors(mux)),
+		// Handler:   middlewares.Cors(mux),
 		TLSConfig: tlsConfig,
 	}
 

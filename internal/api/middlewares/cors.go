@@ -5,6 +5,12 @@ import (
 	"net/http"
 )
 
+// If we have a list of allowed origins
+// var allowedOrigins = []string{
+// 	"",
+// 	"",
+// }
+
 // Cors handles Cross-Origin Resource Sharing (CORS) configurations
 func Cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -25,12 +31,14 @@ func Cors(next http.Handler) http.Handler {
 
 		// Tells the browser which HTTP headers the frontend is allowed to send
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Expose-Headers", "Authorization")
 		
 		// Tells the browser which HTTP methods are permitted
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		
 		// Allows the browser to send cookies or authorization headers with the request
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "3600")
 
 		// Intercept preflight OPTIONS requests and stop here
 		if r.Method == http.MethodOptions {
