@@ -7,7 +7,7 @@ import (
 
 // If we have a list of allowed origins
 // var allowedOrigins = []string{
-// 	"",
+// 	"myFrontEnd.com", This is the url of the frontend hosting url where the user will request and it comes to the backend
 // 	"",
 // }
 
