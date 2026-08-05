@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"restapi/internal/api/middlewares"
 	"strings"
+	"time"
 )
 
 type user struct {
@@ -128,6 +129,10 @@ func main() {
 	// Migrating to mux from http
 	mux := http.NewServeMux()
 
+	// Note: If you add a trailing slash here (e.g., "/execs/"), Go will automatically 
+	// send a 301 redirect if the client requests "/execs". This will cause the 
+	// client to send a second request, hitting our middlewares twice!
+
 	mux.HandleFunc("/", rootHandlers)
 
 	mux.HandleFunc("/teachers/", teachersHandler)
@@ -140,12 +145,13 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
+	rl := middlewares.NewRateLimiter(5, time.Minute)
+
 	// Creating a custom server
 	server := &http.Server{
 		Addr:      port,
 		// Handler:   (middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux)))),
-		Handler:   middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux)))),
-		// Handler:   middlewares.Cors(mux),
+		Handler:   rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))),
 		TLSConfig: tlsConfig,
 	}
 
