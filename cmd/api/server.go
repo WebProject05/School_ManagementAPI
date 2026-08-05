@@ -129,8 +129,8 @@ func main() {
 	// Migrating to mux from http
 	mux := http.NewServeMux()
 
-	// Note: If you add a trailing slash here (e.g., "/execs/"), Go will automatically 
-	// send a 301 redirect if the client requests "/execs". This will cause the 
+	// Note: If you add a trailing slash here (e.g., "/execs/"), Go will automatically
+	// send a 301 redirect if the client requests "/execs". This will cause the
 	// client to send a second request, hitting our middlewares twice!
 
 	mux.HandleFunc("/", rootHandlers)
@@ -147,11 +147,20 @@ func main() {
 
 	rl := middlewares.NewRateLimiter(5, time.Minute)
 
+	hppOptions := middlewares.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+		WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	}
+
+	secureMux := middlewares.Hpp(hppOptions)(rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))))
+
 	// Creating a custom server
 	server := &http.Server{
-		Addr:      port,
+		Addr: port,
 		// Handler:   (middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux)))),
-		Handler:   rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))),
+		Handler:   secureMux,
 		TLSConfig: tlsConfig,
 	}
 
