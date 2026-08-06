@@ -13,6 +13,7 @@ import (
 
 // Cors handles Cross-Origin Resource Sharing (CORS) configurations
 func Cors(next http.Handler) http.Handler {
+	fmt.Println("CORS Middleware")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		fmt.Println("Origin:", origin)

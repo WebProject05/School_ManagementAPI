@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"restapi/internal/api/middlewares"
 	"strings"
-	"time"
 )
 
 type user struct {
@@ -145,17 +144,43 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	rl := middlewares.NewRateLimiter(5, time.Minute)
+	// UNComment after development
+	// rl := middlewares.NewRateLimiter(5, time.Minute)
 
-	hppOptions := middlewares.HPPOptions{
-		CheckQuery:                  true,
-		CheckBody:                   true,
-		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-		WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
-	}
+	// hppOptions := middlewares.HPPOptions{
+	// 	CheckQuery:                  true,
+	// 	CheckBody:                   true,
+	// 	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+	// 	WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	// }
 
-	secureMux := middlewares.Hpp(hppOptions)(rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))))
+	// secureMux := middlewares.Hpp(hppOptions)(rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))))
+	// secureMux := middlewares.ResponseTimeMiddleware(
+	// 	middlewares.SecurityHeaders(
+	// 		middlewares.Cors(
+	// 			rl.Middleware(
+	// 				middlewares.Compression(
+	// 					middlewares.Hpp(hppOptions)(
+	// 						mux,
+	// 					),
+	// 				),
+	// 			),
+	// 		),
+	// 	),
+	// )
 
+	// secureMux := applyMiddlewares(
+	// 	mux,
+	// 	middlewares.ResponseTimeMiddleware, // 1. Starts timer first
+	// 	middlewares.SecurityHeaders,        // 2. Applies headers to all responses
+	// 	middlewares.Cors,                   // 3. Handles OPTIONS preflight requests
+	// 	rl.Middleware,                      // 4. Blocks spam before heavy processing
+	// 	middlewares.Compression,            // 5. Compresses valid, non-blocked payloads
+	// 	middlewares.Hpp(hppOptions),        // 6. Sanitizes data right before hitting the app
+	// )
+
+	// For development purpose just keep the securit purpose
+	secureMux := middlewares.SecurityHeaders(mux)
 	// Creating a custom server
 	server := &http.Server{
 		Addr: port,
@@ -169,4 +194,14 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error starting the server:", err)
 	}
+}
+
+// Middleware is a function that wraps an http.Handler with addional functionality
+type Middleware func(http.Handler) http.Handler
+
+func ApplyMiddlewares(handler http.Handler, middlewares ...Middleware) http.Handler {
+	for _, middlware := range middlewares {
+		handler = middlware(handler)
+	}
+	return handler
 }
