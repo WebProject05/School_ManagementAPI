@@ -9,6 +9,7 @@ import (
 	"restapi/internal/api/middlewares"
 	"strings"
 	"sync"
+	"strconv"
 )
 
 type user struct {
@@ -62,15 +63,34 @@ func init() {
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	idStr := strings.TrimSuffix(path, "/")
-	fmt.Println(idStr)
+	fmt.Println("Requested ID:", idStr)
+
+	var teacherList []Teacher
 
 	if idStr == "" {
+		// No ID provided: Search by query parameters
 		firstName := r.URL.Query().Get("first_name")
 		lastName := r.URL.Query().Get("last_name")
-		teacherList := make([]Teacher, 0, len(teachers))
+
 		for _, teacher := range teachers {
 			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
 				teacherList = append(teacherList, teacher)
+			}
+		}
+	} else {
+		// ID provided: Convert the string ID to an integer
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			// If they typed something like "/teachers/apple", Atoi will fail.
+			http.Error(w, "Invalid teacher ID. Must be a number.", http.StatusBadRequest)
+			return
+		}
+
+		// Now we can safely compare 'id' (int) with 'teacher.ID' (int)
+		for _, teacher := range teachers {
+			if teacher.ID == id {
+				teacherList = append(teacherList, teacher)
+				break 
 			}
 		}
 	}
