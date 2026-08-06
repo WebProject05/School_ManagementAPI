@@ -2,17 +2,91 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"restapi/internal/api/middlewares"
 	"strings"
+	"sync"
 )
 
 type user struct {
 	Name string `json:"name"`
 	Age  string `json:"age"`
 	City string `json:"city"`
+}
+
+type Teacher struct {
+	ID        int
+	FirstName string
+	LastName  string
+	Class     string
+	Subject   string
+}
+
+var teachers = make(map[int]Teacher)
+var mutex = &sync.Mutex{}
+var nextID = 1
+
+// Initialize some dummy data
+func init() {
+	teachers[nextID] = Teacher{
+		ID:        nextID,
+		FirstName: "John",
+		LastName:  "Doe",
+		Class:     "10A",
+		Subject:   "Physics",
+	}
+	nextID++
+
+	teachers[nextID] = Teacher{
+		ID:        nextID,
+		FirstName: "Jane",
+		LastName:  "Smith",
+		Class:     "9B",
+		Subject:   "Mathematics",
+	}
+	nextID++
+
+	teachers[nextID] = Teacher{
+		ID:        nextID,
+		FirstName: "Michael",
+		LastName:  "Doe",
+		Class:     "11C",
+		Subject:   "Chemistry",
+	}
+	nextID++
+}
+
+func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := strings.TrimSuffix(path, "/")
+	fmt.Println(idStr)
+
+	if idStr == "" {
+		firstName := r.URL.Query().Get("first_name")
+		lastName := r.URL.Query().Get("last_name")
+		teacherList := make([]Teacher, 0, len(teachers))
+		for _, teacher := range teachers {
+			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
+				teacherList = append(teacherList, teacher)
+			}
+		}
+	}
+
+	response := struct {
+		Status string    `json:"status"`
+		Count  int       `json:"count"`
+		Data   []Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(teacherList),
+		Data:   teacherList,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func rootHandlers(w http.ResponseWriter, r *http.Request) {
@@ -26,20 +100,8 @@ func rootHandlers(w http.ResponseWriter, r *http.Request) {
 func teachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		fmt.Println(r.URL.Path)
-		path := strings.TrimPrefix(r.URL.Path, "/teachers/")
-		userID := strings.TrimSuffix(path, "/")
-
-		fmt.Println("User ID:", userID)
-
-		fmt.Println("Query Params:", r.URL.Query())
-		queryParam := r.URL.Query()
-		name := queryParam.Get("name")
-		age := queryParam.Get("age")
-		fmt.Println("Name from the query:", name)
-		fmt.Println("Age from the Query:", age)
-		w.Write([]byte("Read (GET) teachers"))
-		return
+		// A function that handles the get method route
+		getTeachersHandler(w, r)
 
 	case http.MethodPost:
 		w.Write([]byte("Create (POST) teacher"))
