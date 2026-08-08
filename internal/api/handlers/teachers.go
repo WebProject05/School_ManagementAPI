@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -48,40 +49,103 @@ func init() {
 }
 
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Connect to DB (Note: Pass a shared *sql.DB instance from main() in production)
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	// Parse ID from URL path
 	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	idStr := strings.TrimSuffix(path, "/")
 	fmt.Println("Requested ID:", idStr)
 
-	var teacherList []models.Teacher
+	// Always initialize as an empty slice (so JSON encodes as [] instead of null if empty)
+	teacherList := make([]models.Teacher, 0)
 
-	if idStr == "" {
-		// No ID provided: Search by query parameters
-		firstName := r.URL.Query().Get("first_name")
-		lastName := r.URL.Query().Get("last_name")
-
-		for _, teacher := range teachers {
-			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
-				teacherList = append(teacherList, teacher)
-			}
-		}
-	} else {
-		// ID provided: Convert the string ID to an integer
+	if idStr != "" && idStr != "teachers" {
+		// --- CASE 1: Fetch single teacher by ID ---
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			// If they typed something like "/teachers/apple", Atoi will fail.
 			http.Error(w, "Invalid teacher ID. Must be a number.", http.StatusBadRequest)
 			return
 		}
 
-		// Now we can safely compare 'id' (int) with 'teacher.ID' (int)
-		for _, teacher := range teachers {
-			if teacher.ID == id {
-				teacherList = append(teacherList, teacher)
-				break
+		var teacher models.Teacher
+		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?"
+
+		err = db.QueryRow(query, id).Scan(
+			&teacher.ID,
+			&teacher.FirstName,
+			&teacher.LastName,
+			&teacher.Email,
+			&teacher.Class,
+			&teacher.Subject,
+		)
+
+		if err == sql.ErrNoRows {
+			// No teacher found with that ID
+			http.Error(w, "Teacher not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			http.Error(w, "Database query error", http.StatusInternalServerError)
+			return
+		}
+
+		teacherList = append(teacherList, teacher)
+
+	} else {
+		// --- CASE 2: Search teachers by query params or fetch all ---
+		firstName := r.URL.Query().Get("first_name")
+		lastName := r.URL.Query().Get("last_name")
+
+		// Dynamically build SQL query and arguments
+		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
+		var args []interface{}
+
+		if firstName != "" {
+			query += " AND first_name = ?"
+			args = append(args, firstName)
+		}
+		if lastName != "" {
+			query += " AND last_name = ?"
+			args = append(args, lastName)
+		}
+
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			http.Error(w, "Database query error", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var teacher models.Teacher
+			err := rows.Scan(
+				&teacher.ID,
+				&teacher.FirstName,
+				&teacher.LastName,
+				&teacher.Email,
+				&teacher.Class,
+				&teacher.Subject,
+			)
+			if err != nil {
+				http.Error(w, "Error scanning row data", http.StatusInternalServerError)
+				return
 			}
+			teacherList = append(teacherList, teacher)
+		}
+
+		// Check for errors during iteration
+		if err = rows.Err(); err != nil {
+			http.Error(w, "Error iterating table rows", http.StatusInternalServerError)
+			return
 		}
 	}
 
+	// Build & return JSON response
 	response := struct {
 		Status string           `json:"status"`
 		Count  int              `json:"count"`
@@ -95,8 +159,6 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
-
-
 
 func postTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	// Note: Replace this local ConnectDb call with a shared *sql.DB instance passed from main()
