@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"restapi/internal/api/middlewares"
 	"restapi/internal/api/router"
 	"restapi/internal/models"
+	"restapi/internal/repository/sqlconnect"
 	"sync"
+
+	"github.com/joho/godotenv"
 )
 
 var teachers = make(map[int]models.Teacher)
@@ -16,12 +20,24 @@ var mutex = &sync.Mutex{}
 var nextID = 1
 
 func main() {
-	port := ":3000"
+	// Load environment variables from .env file
+	_ = godotenv.Load()
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		fmt.Println("Error (loc: server.go)", err)
+		return
+	}
+
+	fmt.Printf("Database: %v \n", db)
+
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = ":3000"
+	}
 
 	cert := "cert.pem"
 	key := "key.pem"
-
-
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
@@ -31,35 +47,35 @@ func main() {
 	// rl := middlewares.NewRateLimiter(5, time.Minute)
 
 	// hppOptions := middlewares.HPPOptions{
-	// 	CheckQuery:                  true,
-	// 	CheckBody:                   true,
-	// 	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-	// 	WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	//  CheckQuery:                  true,
+	//  CheckBody:                   true,
+	//  CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+	//  WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
 	// }
 
 	// secureMux := middlewares.Hpp(hppOptions)(rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))))
 	// secureMux := middlewares.ResponseTimeMiddleware(
-	// 	middlewares.SecurityHeaders(
-	// 		middlewares.Cors(
-	// 			rl.Middleware(
-	// 				middlewares.Compression(
-	// 					middlewares.Hpp(hppOptions)(
-	// 						mux,
-	// 					),
-	// 				),
-	// 			),
-	// 		),
-	// 	),
+	//  middlewares.SecurityHeaders(
+	//      middlewares.Cors(
+	//          rl.Middleware(
+	//              middlewares.Compression(
+	//                  middlewares.Hpp(hppOptions)(
+	//                      mux,
+	//                  ),
+	//              ),
+	//          ),
+	//      ),
+	//  ),
 	// )
 
 	// secureMux := utils.ApplyMiddlewares(
-	// 	mux,
-	// 	middlewares.ResponseTimeMiddleware, // 1. Starts timer first
-	// 	middlewares.SecurityHeaders,        // 2. Applies headers to all responses
-	// 	middlewares.Cors,                   // 3. Handles OPTIONS preflight requests
-	// 	rl.Middleware,                      // 4. Blocks spam before heavy processing
-	// 	middlewares.Compression,            // 5. Compresses valid, non-blocked payloads
-	// 	middlewares.Hpp(hppOptions),        // 6. Sanitizes data right before hitting the app
+	//  mux,
+	//  middlewares.ResponseTimeMiddleware, // 1. Starts timer first
+	//  middlewares.SecurityHeaders,        // 2. Applies headers to all responses
+	//  middlewares.Cors,                   // 3. Handles OPTIONS preflight requests
+	//  rl.Middleware,                      // 4. Blocks spam before heavy processing
+	//  middlewares.Compression,            // 5. Compresses valid, non-blocked payloads
+	//  middlewares.Hpp(hppOptions),        // 6. Sanitizes data right before hitting the app
 	// )
 
 	// For development purpose just keep the securit purpose
@@ -74,7 +90,7 @@ func main() {
 	}
 
 	fmt.Println("Server running on the port:", port)
-	err := server.ListenAndServeTLS(cert, key)
+	err = server.ListenAndServeTLS(cert, key)
 	if err != nil {
 		log.Fatalln("Error starting the server:", err)
 	}
