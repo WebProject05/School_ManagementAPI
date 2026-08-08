@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"restapi/internal/models"
+	"restapi/internal/repository/sqlconnect"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,25 +96,63 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+
+
 func postTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	// Note: Replace this local ConnectDb call with a shared *sql.DB instance passed from main()
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
 
 	var newTeachers []models.Teacher
-	// This will take the raw data and convert it to go structs
-	err := json.NewDecoder(r.Body).Decode(&newTeachers)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	// Decode raw request JSON
+	err = json.NewDecoder(r.Body).Decode(&newTeachers)
+	if err != nil || len(newTeachers) == 0 {
+		http.Error(w, "Invalid or empty request body", http.StatusBadRequest)
 		return
 	}
 
-	addedTeachers := make([]models.Teacher, len(newTeachers))
+	// Begin database transaction for batch insert
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Error starting transaction", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback() // Will safely rollback if not committed
 
-	for i, newTecher := range newTeachers {
-		newTecher.ID = nextID
-		teachers[nextID] = newTecher
-		addedTeachers[i] = newTecher
-		nextID++
+	stmt, err := tx.Prepare("INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?, ?, ?, ?, ?)")
+	if err != nil {
+		http.Error(w, "Error preparing SQL query", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	addedTeachers := make([]models.Teacher, len(newTeachers))
+	for i, newTeacher := range newTeachers {
+		// FIXED: Included missing newTeacher.Email argument to match 5 placeholders (?)
+		res, err := stmt.Exec(newTeacher.FirstName, newTeacher.LastName, newTeacher.Email, newTeacher.Class, newTeacher.Subject)
+		if err != nil {
+			http.Error(w, "Error writing to the database: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		lastID, err := res.LastInsertId()
+		if err != nil {
+			http.Error(w, "Error getting last insert ID", http.StatusInternalServerError)
+			return
+		}
+
+		newTeacher.ID = int(lastID)
+		addedTeachers[i] = newTeacher
+	}
+
+	// Commit transaction if all inserts succeed
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Error committing transaction", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -128,8 +167,8 @@ func postTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		Count:  len(addedTeachers),
 		Data:   addedTeachers,
 	}
-	json.NewEncoder(w).Encode(response)
 
+	json.NewEncoder(w).Encode(response)
 }
 
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
