@@ -10,7 +10,9 @@ import (
 	"restapi/internal/api/router"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
+	"restapi/pkg/utils"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -44,14 +46,15 @@ func main() {
 	}
 
 	// UNComment after development
-	// rl := middlewares.NewRateLimiter(5, time.Minute)
+	rl := middlewares.NewRateLimiter(50, time.Minute)
 
-	// hppOptions := middlewares.HPPOptions{
-	//  CheckQuery:                  true,
-	//  CheckBody:                   true,
-	//  CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-	//  WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
-	// }
+	// Update this HPP Options often when made changes to the handlers and middlewares
+	hppOptions := middlewares.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+		WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class", "email"},
+	}
 
 	// secureMux := middlewares.Hpp(hppOptions)(rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))))
 	// secureMux := middlewares.ResponseTimeMiddleware(
@@ -67,20 +70,20 @@ func main() {
 	//      ),
 	//  ),
 	// )
+	router := router.Router()
 
-	// secureMux := utils.ApplyMiddlewares(
-	//  mux,
-	//  middlewares.ResponseTimeMiddleware, // 1. Starts timer first
-	//  middlewares.SecurityHeaders,        // 2. Applies headers to all responses
-	//  middlewares.Cors,                   // 3. Handles OPTIONS preflight requests
-	//  rl.Middleware,                      // 4. Blocks spam before heavy processing
-	//  middlewares.Compression,            // 5. Compresses valid, non-blocked payloads
-	//  middlewares.Hpp(hppOptions),        // 6. Sanitizes data right before hitting the app
-	// )
+	secureMux := utils.ApplyMiddlewares(
+		router,
+		middlewares.ResponseTimeMiddleware, // 1. Starts timer first
+		middlewares.SecurityHeaders,        // 2. Applies headers to all responses
+		middlewares.Cors,                   // 3. Handles OPTIONS preflight requests
+		rl.Middleware,                      // 4. Blocks spam before heavy processing
+		middlewares.Compression,            // 5. Compresses valid, non-blocked payloads
+		middlewares.Hpp(hppOptions),        // 6. Sanitizes data right before hitting the app
+	)
 
 	// For development purpose just keep the securit purpose
-	router := router.Router()
-	secureMux := middlewares.SecurityHeaders(router)
+	// secureMux := middlewares.SecurityHeaders(router)
 	// Creating a custom server
 	server := &http.Server{
 		Addr: port,
