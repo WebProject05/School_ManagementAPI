@@ -107,6 +107,19 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 		query, args = addFilters(r, query, args)
 
+		// Application of sorting to the get handler of teachers
+		sortParams := r.URL.Query()["sortby"]
+		if len(sortParams) > 0 {
+			query += " ORDER BY"
+			for i, param := range sortParams {
+				parts := strings.Split(param, ":")
+				if len(parts) != 2 {
+					continue
+				}
+				field, order := parts[0], parts[1]
+			}
+		}
+
 		// if firstName != "" {
 		// 	query += " AND first_name = ?"
 		// 	args = append(args, firstName)
