@@ -53,7 +53,7 @@ func main() {
 		CheckQuery:                  true,
 		CheckBody:                   true,
 		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-		WhiteList:                   []string{"sortBy", "sortOrder", "name", "age", "class", "email"},
+		WhiteList:                   []string{"sortby", "sortOrder", "name", "age", "class", "email"},
 	}
 
 	// secureMux := middlewares.Hpp(hppOptions)(rl.Middlware(middlewares.Compression(middlewares.ResponseTimeMiddleware(middlewares.SecurityHeaders(middlewares.Cors(mux))))))

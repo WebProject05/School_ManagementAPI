@@ -52,6 +52,18 @@ func isValidSortOrder(order string) bool {
 	return order == "asc" || order == "desc"
 }
 
+func isValidSortField(field string) bool {
+	validFields := map[string]bool{
+		"first_name": true,
+		"last_name":  true,
+		"email":      true,
+		"class":      true,
+		"subject":    true,
+	}
+
+	return validFields[field]
+}
+
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Connect to DB (Note: Pass a shared *sql.DB instance from main() in production)
 	db, err := sqlconnect.ConnectDb()
@@ -112,17 +124,7 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		query, args = addFilters(r, query, args)
 
 		// Application of sorting to the get handler of teachers
-		sortParams := r.URL.Query()["sortby"]
-		if len(sortParams) > 0 {
-			query += " ORDER BY"
-			for i, param := range sortParams {
-				parts := strings.Split(param, ":")
-				if len(parts) != 2 {
-					continue
-				}
-				field, order := parts[0], parts[1]
-			}
-		}
+		query = addSorting(r, query)
 
 		// if firstName != "" {
 		// 	query += " AND first_name = ?"
@@ -177,6 +179,43 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func addSorting(r *http.Request, query string) string {
+	sortParams := r.URL.Query()["sortby"]
+
+	if len(sortParams) > 0 {
+		var validSortClauses []string // Store valid valid "field ASC/DESC" strings here
+
+		for _, param := range sortParams {
+			parts := strings.Split(param, ":")
+			if len(parts) != 2 {
+				continue
+			}
+
+			field := parts[0]
+			order := strings.ToUpper(parts[1]) // Normalize to uppercase (ASC/DESC)
+
+			// 1. Validate the database field
+			if !isValidSortField(field) {
+				continue
+			}
+
+			// 2. Validate the sorting direction strictly
+			if order != "ASC" && order != "DESC" {
+				continue
+			}
+
+			// Add to our valid list
+			validSortClauses = append(validSortClauses, field+" "+order)
+		}
+
+		// 3. Only append ORDER BY if we actually have valid sorting parameters
+		if len(validSortClauses) > 0 {
+			query += " ORDER BY " + strings.Join(validSortClauses, ", ")
+		}
+	}
+	return query
 }
 
 func addFilters(r *http.Request, query string, args []interface{}) (string, []interface{}) {
