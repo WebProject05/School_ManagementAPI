@@ -48,6 +48,10 @@ func init() {
 	nextID++
 }
 
+func isValidSortOrder(order string) bool {
+	return order == "asc" || order == "desc"
+}
+
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Connect to DB (Note: Pass a shared *sql.DB instance from main() in production)
 	db, err := sqlconnect.ConnectDb()
