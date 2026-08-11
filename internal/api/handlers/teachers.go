@@ -345,7 +345,7 @@ func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "applicaton/json")
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedTeacher)
 
 }
@@ -361,6 +361,7 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPut:
 		// A function that handles Put method
+		updateTeacherHandler(w, r)
 
 	case http.MethodPatch:
 		w.Write([]byte("Partial Update (PATCH) teacher"))
