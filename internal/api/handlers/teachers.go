@@ -310,7 +310,43 @@ func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	var existingTeacher models.Teacher
-	db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(&existingTeacher.ID, &ex)
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(
+		&existingTeacher.ID,
+		&existingTeacher.FirstName,
+		&existingTeacher.LastName,
+		&existingTeacher.Email,
+		&existingTeacher.Class,
+		&existingTeacher.Subject,
+	)
+
+	// If the teacher witht he given query is not found
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Teacher not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Unable to retrive data", http.StatusInternalServerError)
+		return
+	}
+
+	updatedTeacher.ID = existingTeacher.ID
+	_, err = db.Exec(
+		"UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
+		updatedTeacher.FirstName,
+		updatedTeacher.LastName,
+		updatedTeacher.Email,
+		updatedTeacher.Class,
+		updatedTeacher.Subject,
+		id, // The last '?' placeholder is for the WHERE clause
+	)
+
+	if err != nil {
+		http.Error(w, "Error updating Teacher", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "applicaton/json")
+	json.NewEncoder(w).Encode(updatedTeacher)
 
 }
 
