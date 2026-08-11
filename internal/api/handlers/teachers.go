@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
@@ -19,34 +20,6 @@ var nextID = 1
 // Initialize some dummy data
 // This init() function does not have to be called
 // The Go runtime automatically runs this init() as this is a reserved keyword
-func init() {
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "John",
-		LastName:  "Doe",
-		Class:     "10A",
-		Subject:   "Physics",
-	}
-	nextID++
-
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "Jane",
-		LastName:  "Smith",
-		Class:     "9B",
-		Subject:   "Mathematics",
-	}
-	nextID++
-
-	teachers[nextID] = models.Teacher{
-		ID:        nextID,
-		FirstName: "Michael",
-		LastName:  "Doe",
-		Class:     "11C",
-		Subject:   "Chemistry",
-	}
-	nextID++
-}
 
 func isValidSortOrder(order string) bool {
 	return order == "asc" || order == "desc"
@@ -310,6 +283,37 @@ func postTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// PUT method
+func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Invalid Id", http.StatusBadRequest)
+		return
+	}
+
+	var updatedTeacher models.Teacher
+	err = json.NewDecoder(r.Body).Decode(&updatedTeacher)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Invalid Request Payload", http.StatusBadRequest)
+		return
+	}
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unable to connect to the database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var existingTeacher models.Teacher
+	db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(&existingTeacher.ID, &ex)
+
+}
+
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -320,8 +324,7 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 		postTeacherHandler(w, r)
 
 	case http.MethodPut:
-		w.Write([]byte("Update (PUT) teacher"))
-		return
+		// A function that handles Put method
 
 	case http.MethodPatch:
 		w.Write([]byte("Partial Update (PATCH) teacher"))
