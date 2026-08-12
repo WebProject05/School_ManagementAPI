@@ -319,7 +319,7 @@ func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		&existingTeacher.Subject,
 	)
 
-	// If the teacher witht he given query is not found
+	// If the teacher the given query is not found
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Teacher not found", http.StatusNotFound)
@@ -350,6 +350,91 @@ func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Patch method
+func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Invalid Id", http.StatusBadRequest)
+		return
+	}
+
+	var updates map[string]interface{}
+	err = json.NewDecoder(r.Body).Decode(&updates)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Invalid Request Payload", http.StatusBadRequest)
+		return
+	}
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "Unable to connect to the database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var existingTeacher models.Teacher
+	err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(
+		&existingTeacher.ID,
+		&existingTeacher.FirstName,
+		&existingTeacher.LastName,
+		&existingTeacher.Email,
+		&existingTeacher.Class,
+		&existingTeacher.Subject,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Teacher not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Unable to retrive data", http.StatusInternalServerError)
+		return
+	}
+
+	// Apply updates
+	for k, v := range updates {
+		switch k {
+		case "first_name":
+			if val, ok := v.(string); ok {
+				existingTeacher.FirstName = val
+			}
+		case "last_name":
+			if val, ok := v.(string); ok {
+				existingTeacher.LastName = val
+			}
+		case "email":
+			if val, ok := v.(string); ok {
+				existingTeacher.Email = val
+			}
+		case "class":
+			if val, ok := v.(string); ok {
+				existingTeacher.Class = val
+			}
+		case "subject":
+			if val, ok := v.(string); ok {
+				existingTeacher.Subject = val
+			}
+		}
+	}
+
+	_, err = db.Exec(
+		"UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
+		existingTeacher.FirstName,
+		existingTeacher.LastName,
+		existingTeacher.Email,
+		existingTeacher.Class,
+		existingTeacher.Subject,
+		existingTeacher.ID, // The last '?' placeholder is for the WHERE clause
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(existingTeacher)
+}
+
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -364,8 +449,7 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 		updateTeacherHandler(w, r)
 
 	case http.MethodPatch:
-		w.Write([]byte("Partial Update (PATCH) teacher"))
-		return
+		patchTeacherHandler(w, r)
 
 	case http.MethodDelete:
 		w.Write([]byte("Delete (DELETE) teacher"))
