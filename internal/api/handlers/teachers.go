@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
 	"strconv"
@@ -395,31 +396,46 @@ func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply updates
+	// // Apply updates
+	// for k, v := range updates {
+	// 	switch k {
+	// 	case "first_name":
+	// 		if val, ok := v.(string); ok {
+	// 			existingTeacher.FirstName = val
+	// 		}
+	// 	case "last_name":
+	// 		if val, ok := v.(string); ok {
+	// 			existingTeacher.LastName = val
+	// 		}
+	// 	case "email":
+	// 		if val, ok := v.(string); ok {
+	// 			existingTeacher.Email = val
+	// 		}
+	// 	case "class":
+	// 		if val, ok := v.(string); ok {
+	// 			existingTeacher.Class = val
+	// 		}
+	// 	case "subject":
+	// 		if val, ok := v.(string); ok {
+	// 			existingTeacher.Subject = val
+	// 		}
+	// 	}
+	// }
+
+	// Applying the changes using reflect package
+	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	teacherType := teacherVal.Type()
+
 	for k, v := range updates {
-		switch k {
-		case "first_name":
-			if val, ok := v.(string); ok {
-				existingTeacher.FirstName = val
-			}
-		case "last_name":
-			if val, ok := v.(string); ok {
-				existingTeacher.LastName = val
-			}
-		case "email":
-			if val, ok := v.(string); ok {
-				existingTeacher.Email = val
-			}
-		case "class":
-			if val, ok := v.(string); ok {
-				existingTeacher.Class = val
-			}
-		case "subject":
-			if val, ok := v.(string); ok {
-				existingTeacher.Subject = val
+		for i := 0; i < teacherVal.NumField(); i++ {
+			field := teacherType.Field(i)
+			if field.Tag.Get("json") == k+",omitempty" {
+				if teacherVal.Field(i).CanSet() {
+					teacherVal.Field(i).Set(reflect.ValueOf(v).Convert(field.Type))
+				}
 			}
 		}
-	}
+	} 
 
 	_, err = db.Exec(
 		"UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
