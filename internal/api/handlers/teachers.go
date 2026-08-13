@@ -489,6 +489,7 @@ func deleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte(`{"status": "success", "message": "Teacher deleted successfully"}`))
 }
+
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -506,11 +507,11 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 		patchTeacherHandler(w, r)
 
 	case http.MethodDelete:
-		w.Write([]byte("Delete (DELETE) teacher"))
-		return
+		deleteTeacherHandler(w, r)
 
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
 	w.Write([]byte("Hello from the teachers route!"))
 }
+ 

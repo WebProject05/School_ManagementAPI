@@ -15,8 +15,19 @@ func Router() *http.ServeMux {
 
 	mux.HandleFunc("/", handlers.RootHandlers)
 
-	mux.HandleFunc("/teachers/", handlers.TeachersHandler)
+	// GET methods
+	mux.HandleFunc("GET /teachers", handlers.TeachersHandler)         // Fetch all or search by query
+	mux.HandleFunc("GET /teachers/{id}", handlers.TeachersHandler) // Fetch a specific teacher
 
+	// POST method
+	mux.HandleFunc("POST /teachers", handlers.TeachersHandler) // Create new teacher(s)
+
+	// PUT / PATCH methods
+	mux.HandleFunc("PUT /teachers/{id}", handlers.TeachersHandler)  // Full replace
+	mux.HandleFunc("PATCH /teachers/{id}", handlers.TeachersHandler) // Partial modify
+
+	// DELETE method
+	mux.HandleFunc("DELETE /teachers/{id}", handlers.TeachersHandler) // Delete a teacher
 	mux.HandleFunc("/students/", handlers.StudentsHandler)
 
 	mux.HandleFunc("/execs/", handlers.ExcesHandler)
