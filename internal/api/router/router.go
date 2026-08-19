@@ -15,23 +15,19 @@ func Router() *http.ServeMux {
 
 	mux.HandleFunc("/", handlers.RootHandlers)
 
-	// GET methods
-	mux.HandleFunc("GET /teachers", handlers.TeachersHandler)         // Fetch all or search by query
-	mux.HandleFunc("GET /teachers/{id}", handlers.TeachersHandler) // Fetch a specific teacher
+	mux.HandleFunc("GET /teachers", handlers.GetTeachersHandler)      // Fetch all or search by query
+	mux.HandleFunc("POST /teachers", handlers.PostTeacherHandler) // Create new teacher(s)
+	mux.HandleFunc("PATCH /teachers/", handlers.PatchTeacherHandler) // Partial modify
+	mux.HandleFunc("DELETE /teachers/", handlers.DeleteTeacherHandler) // Delete a teacher
+	
+	mux.HandleFunc("GET /teachers/{id}", handlers.GetTeacherHandler) // Fetch a specific teacher
+	mux.HandleFunc("PUT /teachers/{id}", handlers.UpdateTeacherHandler)  // Full replace
+	mux.HandleFunc("PATCH /teachers/{id}", handlers.PatchTeacherHandler) // Partial modify
+	mux.HandleFunc("DELETE /teachers/{id}", handlers.DeleteTeacherHandler) // Delete a teacher
 
-	// POST method
-	mux.HandleFunc("POST /teachers", handlers.TeachersHandler) // Create new teacher(s)
-
-	// PUT / PATCH methods
-	mux.HandleFunc("PUT /teachers/{id}", handlers.TeachersHandler)  // Full replace
-	mux.HandleFunc("PATCH /teachers/{id}", handlers.TeachersHandler) // Partial modify
-
-	// DELETE method
-	mux.HandleFunc("DELETE /teachers/{id}", handlers.TeachersHandler) // Delete a teacher
 	mux.HandleFunc("/students/", handlers.StudentsHandler)
 
-	mux.HandleFunc("/execs/", handlers.ExcesHandler)
-
+	mux.HandleFunc("/execs/", handlers.ExcesHandler) // <-- Add the function name back
 	return mux
 
 }

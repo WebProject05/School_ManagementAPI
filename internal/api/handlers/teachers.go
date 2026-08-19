@@ -38,7 +38,7 @@ func isValidSortField(field string) bool {
 	return validFields[field]
 }
 
-func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Connect to DB (Note: Pass a shared *sql.DB instance from main() in production)
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
@@ -55,18 +55,37 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// Always initialize as an empty slice (so JSON encodes as [] instead of null if empty)
 	teacherList := make([]models.Teacher, 0)
 
-	if idStr != "" && idStr != "teachers" {
-		// --- CASE 1: Fetch single teacher by ID ---
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid teacher ID. Must be a number.", http.StatusBadRequest)
-			return
-		}
+	// firstName := r.URL.Query().Get("first_name")
+	// lastName := r.URL.Query().Get("last_name")
 
+	// Dynamically build SQL query and arguments
+	query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
+	var args []interface{}
+
+	query, args = addFilters(r, query, args)
+
+	// Application of sorting to the get handler of teachers
+	query = addSorting(r, query)
+
+	// if firstName != "" {
+	// 	query += " AND first_name = ?"
+	// 	args = append(args, firstName)
+	// }
+	// if lastName != "" {
+	// 	query += " AND last_name = ?"
+	// 	args = append(args, lastName)
+	// }
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		http.Error(w, "Database query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
 		var teacher models.Teacher
-		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?"
-
-		err = db.QueryRow(query, id).Scan(
+		err := rows.Scan(
 			&teacher.ID,
 			&teacher.FirstName,
 			&teacher.LastName,
@@ -74,70 +93,17 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 			&teacher.Class,
 			&teacher.Subject,
 		)
-
-		if err == sql.ErrNoRows {
-			// No teacher found with that ID
-			http.Error(w, "Teacher not found", http.StatusNotFound)
-			return
-		} else if err != nil {
-			http.Error(w, "Database query error", http.StatusInternalServerError)
-			return
-		}
-
-		teacherList = append(teacherList, teacher)
-
-	} else {
-		// --- CASE 2: Search teachers by query params or fetch all ---
-		// firstName := r.URL.Query().Get("first_name")
-		// lastName := r.URL.Query().Get("last_name")
-
-		// Dynamically build SQL query and arguments
-		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
-		var args []interface{}
-
-		query, args = addFilters(r, query, args)
-
-		// Application of sorting to the get handler of teachers
-		query = addSorting(r, query)
-
-		// if firstName != "" {
-		// 	query += " AND first_name = ?"
-		// 	args = append(args, firstName)
-		// }
-		// if lastName != "" {
-		// 	query += " AND last_name = ?"
-		// 	args = append(args, lastName)
-		// }
-
-		rows, err := db.Query(query, args...)
 		if err != nil {
-			http.Error(w, "Database query error", http.StatusInternalServerError)
+			http.Error(w, "Error scanning row data", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
+		teacherList = append(teacherList, teacher)
+	}
 
-		for rows.Next() {
-			var teacher models.Teacher
-			err := rows.Scan(
-				&teacher.ID,
-				&teacher.FirstName,
-				&teacher.LastName,
-				&teacher.Email,
-				&teacher.Class,
-				&teacher.Subject,
-			)
-			if err != nil {
-				http.Error(w, "Error scanning row data", http.StatusInternalServerError)
-				return
-			}
-			teacherList = append(teacherList, teacher)
-		}
-
-		// Check for errors during iteration
-		if err = rows.Err(); err != nil {
-			http.Error(w, "Error iterating table rows", http.StatusInternalServerError)
-			return
-		}
+	// Check for errors during iteration
+	if err = rows.Err(); err != nil {
+		http.Error(w, "Error iterating table rows", http.StatusInternalServerError)
+		return
 	}
 
 	// Build & return JSON response
@@ -149,6 +115,57 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		Status: "success",
 		Count:  len(teacherList),
 		Data:   teacherList,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func GetTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	// Connect to DB (Note: Pass a shared *sql.DB instance from main() in production)
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	idStr := r.PathValue("id")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid teacher ID. Must be a number.", http.StatusBadRequest)
+		return
+	}
+
+	var teacher models.Teacher
+	query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?"
+
+	err = db.QueryRow(query, id).Scan(
+		&teacher.ID,
+		&teacher.FirstName,
+		&teacher.LastName,
+		&teacher.Email,
+		&teacher.Class,
+		&teacher.Subject,
+	)
+
+	// 4. Handle errors
+	if err == sql.ErrNoRows {
+		http.Error(w, "Teacher not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Database query error", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Build & return JSON response with a SINGLE object, not a slice
+	response := struct {
+		Status string         `json:"status"`
+		Data   models.Teacher `json:"data"` // Changed from []models.Teacher
+	}{
+		Status: "success",
+		Data:   teacher,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -211,7 +228,7 @@ func addFilters(r *http.Request, query string, args []interface{}) (string, []in
 	return query, args
 }
 
-func postTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func PostTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	// Note: Replace this local ConnectDb call with a shared *sql.DB instance passed from main()
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
@@ -285,7 +302,7 @@ func postTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PUT method
-func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -352,7 +369,7 @@ func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Patch method
-func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -452,7 +469,7 @@ func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // DELETE method
-func deleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -490,28 +507,27 @@ func deleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status": "success", "message": "Teacher deleted successfully"}`))
 }
 
-func TeachersHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		// A function that handles the get method route
-		getTeachersHandler(w, r)
+// func TeachersHandler(w http.ResponseWriter, r *http.Request) {
+// 	switch r.Method {
+// 	case http.MethodGet:
+// 		// A function that handles the get method route
+// 		getTeachersHandler(w, r)
 
-	case http.MethodPost:
-		postTeacherHandler(w, r)
+// 	case http.MethodPost:
+// 		postTeacherHandler(w, r)
 
-	case http.MethodPut:
-		// A function that handles Put method
-		updateTeacherHandler(w, r)
+// 	case http.MethodPut:
+// 		// A function that handles Put method
+// 		updateTeacherHandler(w, r)
 
-	case http.MethodPatch:
-		patchTeacherHandler(w, r)
+// 	case http.MethodPatch:
+// 		patchTeacherHandler(w, r)
 
-	case http.MethodDelete:
-		deleteTeacherHandler(w, r)
+// 	case http.MethodDelete:
+// 		deleteTeacherHandler(w, r)
 
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-	}
-	w.Write([]byte("Hello from the teachers route!"))
-}
- 
+// 	default:
+// 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+// 	}
+// 	w.Write([]byte("Hello from the teachers route!"))
+// }
