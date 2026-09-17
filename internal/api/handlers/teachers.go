@@ -369,7 +369,7 @@ func UpdateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Patch method for /teachers
-func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	var updates []map[string]interface{}
 	err := json.NewDecoder(r.Body).Decode(&updates)
 	if err != nil {
@@ -396,16 +396,30 @@ func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, update := range updates {
-		idFloat, ok := update["id"].(string)
+		idValue, ok := update["id"]
 		if !ok {
 			tx.Rollback()
 			http.Error(w, "Invalid or missing Teacher Id", http.StatusBadRequest)
 			return
 		}
 
-		id, err := strconv.Atoi(idFloat)
+		var idString string
+		switch value := idValue.(type) {
+		case string:
+			idString = value
+		case float64:
+			idString = strconv.FormatFloat(value, 'f', -1, 64)
+		default:
+			tx.Rollback()
+			http.Error(w, "Invalid or missing Teacher Id", http.StatusBadRequest)
+			return
+		}
+
+		id, err := strconv.Atoi(idString)
 		if err != nil {
-			
+			tx.Rollback()
+			http.Error(w, "Invalid Teacher Id", http.StatusBadRequest)
+			return
 		}
 		var teacherFromDb models.Teacher
 		err = tx.QueryRow(
@@ -446,7 +460,7 @@ func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 			for i := 0; i < teacherVal.NumField(); i++ {
 				field := teacherType.Field(i)
-				jsonTag := strings.Split(field.Tag.Get("json"), ",")[0]
+				jsonTag := strings.Split(field.Tag.Get("json"), ",omitempty")[0]
 
 				if jsonTag == k {
 					fieldVal := teacherVal.Field(i)
@@ -465,7 +479,6 @@ func patchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-_, err = tx.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", teacherFromDb.FirstName, teacherFromDb.LastName, teacherFromDb.Email, teacherFromDb.Class, teacherFromDb.Subject, id)
 		_, err = tx.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", teacherFromDb.FirstName, teacherFromDb.LastName, teacherFromDb.Email, teacherFromDb.Class, teacherFromDb.Subject, id)
 
 		if err != nil {
@@ -483,7 +496,6 @@ _, err = tx.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, 
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-
 
 }
 

@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// UNComment after development
-	rl := middlewares.NewRateLimiter(50, time.Minute)
+	rl := middlewares.NewRateLimiter(10000, time.Minute)
 
 	// Update this HPP Options often when made changes to the handlers and middlewares
 	hppOptions := middlewares.HPPOptions{
